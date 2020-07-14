@@ -15,49 +15,34 @@ public class Habitat : MonoBehaviour
     public double totalLandCount = 350;
 
     public Habitat habitatToTheRight;
+    public GameObject buttonListContent;
+
+    [HideInInspector]
+    public List<ActionableItem> habitatActions = new List<ActionableItem>();
 
     virtual public void Awake()
     {
         speciesList = new List<HabitatSpecies>();
-
     }
 
-    public GameObject actionButton;
+    public GameObject actionButtonTemplate;
 
     // Start is called before the first frame update
     virtual public void Start()
     {
+        //adding to the world habitats list
         GameController.Instance.worldHabitats.Add(this);
 
-        //update populations 100 times to find stable levels
-        for (int i = 0; i < 9999; i++)
-        {
-            UpdatePopulations();
-        }
-
-        //GameObject actionButton = GameObject.Find("ActionButton");
-
-        int actionCount = 0;
+        //adding the action buttons
+        actionButtons = new List<GameObject>();
+        //TODO this will need to be standardised for all Actions. And to be updated as actions change.
         foreach (HabitatSpecies species in speciesList)
         {
             if(species.actions.Count > 0)
             {
                 foreach (HabitatSpecies.SpeciesAction action in species.actions)
                 {
-                    //creates new button, and adds the text for the button
-                    GameObject newActionButton = Instantiate(actionButton, transform.GetChild(1));
-                    newActionButton.transform.GetChild(0).GetComponent<Text>().text = action.name;
-
-                    //Setting action of the button
-                    //newActionButton.GetComponent<Button>().onClick.AddListener(() => action.execute(species, this));
-                    newActionButton.GetComponent<Button>().onClick.AddListener(() =>
-                        GameController.Instance.QueueTask(action.ExecutionTime(species), () => action.Execute(species, this)));
-
-                    //setting positions of the button
-                    Vector3 currentPosition = newActionButton.GetComponent<RectTransform>().localPosition;
-                    currentPosition.y = currentPosition.y - actionCount * 25;
-                    newActionButton.GetComponent<RectTransform>().localPosition = currentPosition;
-                    actionCount++;
+                    habitatActions.Add(action);
                 }
             }
         }
@@ -66,7 +51,31 @@ public class Habitat : MonoBehaviour
     // Update is called once per frame
     virtual public void Update()
     {
-
+        foreach(ActionableItem action in habitatActions)
+        {
+            //checking if button instantiated, if not, creating it
+            GameObject actionButton = action.actionButton;
+            if(actionButton == null)
+            {
+                actionButton = Instantiate(actionButtonTemplate);
+                actionButton.transform.SetParent(buttonListContent.transform, false);
+                action.actionButton = actionButton;
+            }
+            
+            String taskId = actionButton.GetInstanceID() + action.actionName;
+            int taskCount = GameController.Instance.CountTask(taskId);
+            //if no current tasks for the button, hide the progress circle
+            if(taskCount <= 0)
+            {
+                actionButton.transform.GetChild(1).gameObject.SetActive(false);
+            } else
+            {
+                //otherwise, update the number of current tasks and the progress circle completion
+                actionButton.transform.GetChild(1).gameObject.transform.GetChild(2).GetComponent<Text>().text = "" + taskCount;
+                double completionPercent = GameController.Instance.TaskPercentComplete(taskId);
+                actionButton.transform.GetChild(1).gameObject.transform.GetChild(1).GetComponent<Image>().fillAmount = (float) completionPercent;
+            }
+        }
     }
 
     virtual public void FixedUpdate()

@@ -43,7 +43,7 @@ public class HabitatSpecies
     }
 
     public void Migrate(Habitat habitatA, Habitat habitatB)
-    {
+    { 
         //if either are null, return
         if (habitatA == null || habitatB == null)
         {
@@ -75,7 +75,7 @@ public class HabitatSpecies
             return;
         }
         //if one is still null, and the other has a count, instantiate it
-        if(speciesInA == null)
+        if (speciesInA == null)
         {
             speciesInA = habitatA.AddSpecies(name);
         }
@@ -156,81 +156,96 @@ public class HabitatSpecies
         count = count * growthRate;
     }
 
-    public double BeginAction(String actionName)
-    {
-        foreach (SpeciesAction action in actions)
-        {
-            if (action.name == actionName)
-            {
-                return action.ExecutionTime(this);
-            }
-        }
-        return 0;
-    }
+    //public double BeginAction(String actionName)
+    //{
+    //    foreach (SpeciesAction action in actions)
+    //    {
+    //        if (action.actionName == actionName)
+    //        {
+    //            return action.ExecutionTime();
+    //        }
+    //    }
+    //    return 0;
+    //}
 
-    public void ExecuteAction(String actionName, Habitat storage)
-    {
-        foreach (SpeciesAction action in actions)
-        {
-            if (action.name == actionName) {
-                action.Execute(this, storage);
-            }
-        }
-    }
+    //public void ExecuteAction(String actionName, Storage storage)
+    //{
+    //    foreach (SpeciesAction action in actions)
+    //    {
+    //        if (action.actionName == actionName) {
+    //            action.Execute(this, storage);
+    //        }
+    //    }
+    //}
 
     /** Moves HabitatSpecies from were it is to the moveTo habitat (usually storage)
     * timeTaken: a function of the count of the habitat species, determines the time taken based on the amount in the habitat
     * determines the amount moved as a function of the current amount. */
-    public void AddMoveAction(String actionName, Func<Double, Double> timeTaken, double amountRemoved, String outputName, double amountProduced)
+    public void AddMoveAction(String actionName, string actionRequirements, string actionOutput, Storage storage, Func<Double, Double> timeTaken, double amountRemoved, String outputName, double amountProduced)
     {
-        SpeciesAction action = new SpeciesAction(actionName, timeTaken, amountRemoved, outputName, amountProduced);
+        SpeciesAction action = new SpeciesAction(actionName, actionRequirements, actionOutput, this, storage, timeTaken, amountRemoved, outputName, amountProduced);
         actions.Add(action);
     }
 
     //TODO allow for a different output than the input
     //axe trees produces wood, not trees
-    public class SpeciesAction
+    public class SpeciesAction : ActionableItem
     {
-        public String name { get; }
         public String outputName;
         private Func<Double, Double> timeTakenFunc;
-        private double amountRemoved;
-        private double amountProduced;
+        private double countOfSpeciesRemovedOnSuccess;
+        private double countOfStorageItemProducedPerSpeciesRemoved;
+        private HabitatSpecies parentSpecies;
+        private Storage storage;
 
-        public SpeciesAction(String name, Func<Double, Double> timeTaken, double amountRemoved, String outputName, double amountProduced)
+        public SpeciesAction(String name, string actionRequirements, string actionOutput, HabitatSpecies parentSpecies, Storage storage, 
+            Func<Double, Double> timeTaken, double countOfSpeciesRemovedOnSuccess, String outputName, double countOfStorageItemProducedPerSpeciesRemoved)
+            : base(name, actionRequirements, actionOutput)
         {
-            this.name = name;
+            this.parentSpecies = parentSpecies;
+            this.storage = storage;
             this.timeTakenFunc = timeTaken;
-            this.amountRemoved = amountRemoved;
+            this.countOfSpeciesRemovedOnSuccess = countOfSpeciesRemovedOnSuccess;
             this.outputName = outputName;
-            this.amountProduced = amountProduced;
+            this.countOfStorageItemProducedPerSpeciesRemoved = countOfStorageItemProducedPerSpeciesRemoved;
         }
 
-        public double ExecutionTime(HabitatSpecies species)
+        override public bool IsActionPossible()
         {
-            double count = species.count;
+            return parentSpecies.count > 0;
+        }
+
+        override public double ExecutionTime()
+        {
+            double count = parentSpecies.count;
             double timeTaken = timeTakenFunc(count);
             return timeTaken;
         }
 
         //TODO return boolean successful
-        public bool Execute(HabitatSpecies parentSpecies, Habitat storage)
+        override public bool Execute()
         {
-            double amountMissed = 0;
-            parentSpecies.count = parentSpecies.count - amountRemoved;
-            if(parentSpecies.count <= 0)
+            //if there is nothing to take, fails
+            if (parentSpecies.count == 0)
             {
-                amountMissed = amountRemoved + parentSpecies.count;
-                parentSpecies.count = 0;
+                return false;
             }
+            //make sure storage is ready to recieve
             if (!storage.HasSpecies(outputName))
             {
                 storage.AddSpecies(outputName);
             }
-            storage.GetSpecies(outputName).count = storage.GetSpecies(outputName).count + amountProduced - (amountMissed*(amountProduced/amountRemoved));
-            if(amountMissed > 0)
+            //if not a full action possible, take what can be removed
+            if (parentSpecies.count < countOfSpeciesRemovedOnSuccess)
             {
-                return false;
+                storage.GetSpecies(outputName).count = storage.GetSpecies(outputName).count + parentSpecies.count * countOfStorageItemProducedPerSpeciesRemoved;
+                parentSpecies.count = 0;
+            }
+            //otherwise take everything in that action
+            else
+            {
+                parentSpecies.count = parentSpecies.count - countOfSpeciesRemovedOnSuccess;
+                storage.GetSpecies(outputName).count = storage.GetSpecies(outputName).count + countOfSpeciesRemovedOnSuccess * countOfStorageItemProducedPerSpeciesRemoved;
             }
             return true;
         }

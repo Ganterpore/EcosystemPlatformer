@@ -24,7 +24,7 @@ public class ForestHabitat : Habitat
     HabitatSpecies animals;
     HabitatSpecies berries;
 
-    private GameObject treeCountTextObject;
+    private GameObject speciesCountTextObject;
     private GameObject animalCountTextObject;
     private GameObject berryBushCountTextObject;
     private GameObject berryCountTextObject;
@@ -39,12 +39,7 @@ public class ForestHabitat : Habitat
     {
         base.Awake();
         //finding the UI text to display the counts
-        treeCountTextObject = GameObject.Find(this.name + "/Canvas/TreeCount");
-        animalCountTextObject = GameObject.Find(this.name + "/Canvas/AnimalCount");
-        berryBushCountTextObject = GameObject.Find(this.name + "/Canvas/BerryBushCount");
-        berryCountTextObject = GameObject.Find(this.name + "/Canvas/BerryCount");
-        bugCountTextObject = GameObject.Find(this.name + "/Canvas/BugCount");
-        spareLandCountTextObject = GameObject.Find(this.name + "/Canvas/SpareLandCount");
+        speciesCountTextObject = GameObject.Find(this.name + "/Canvas/SpeciesCount");
 
         //getting the tree views to update
         //TODO will need to change this in the future
@@ -62,21 +57,13 @@ public class ForestHabitat : Habitat
 
         //creating the relationships withing the habitat
         trees.SetLandCompetition(0.08);
-        animals.AddFoodSource(bugs, 0.0, 10.0, 1.1);
+        animals.AddFoodSource(bugs, 0.0, 50.0, 1.1);
         animals.AddHabitat(trees, 0.0, 1.0 / 3.0, 1.05);
         berryBush.SetLandCompetition(0.2);
         berries.AddPredator(bugs, 1.0, 1.0, 0);
         berries.AddProducer(berryBush, 20.0, 200.0, 0.0);
-        bugs.AddPredator(animals, 1.0, 1.0 / 8.0, 0.0);
-        bugs.AddFoodSource(berries, 0.25, 1.0, 3.0);
-
-        //Adding actions
-        trees.AddMoveAction("Axe Tree", ((Double count) => (5 * count)/200), //5 seconds at 200 trees
-                                        10, "Wood", 100); // 10 trees moved, produces 100 wood
-        animals.AddMoveAction("Hunt Animal", ((Double count) => (60 * count) / 90), //1 minute at 90 animals
-                                        1, "Food", 5); //1 animal killed, produces 5 food
-        berries.AddMoveAction("Collect Berries", ((Double count) => (5 * count) / 2000), //5 seconds at 2000 berries
-                                        100, "Food", 5); //100 berries collected produces 5 food
+        bugs.AddPredator(animals, 1.0, 1.0 / 40.0, 0.0);
+        bugs.AddFoodSource(berries, 0.25, 1.0, 3);
 
         //adding the species to the species list
         //species = new List<HabitatSpecies>();
@@ -91,6 +78,13 @@ public class ForestHabitat : Habitat
     // Start is called before the first frame update
     override public void Start()
     {
+        //Adding actions
+        trees.AddMoveAction("Axe Tree", "Trees", "Wood", GameController.Instance.storage, ((Double count) => (20 * count) / 250), //20 seconds at 250 trees
+                                        1, "Wood", 1); // 1 trees moved, produces 1 wood
+        animals.AddMoveAction("Hunt Animal", "Animals", "Food", GameController.Instance.storage, ((Double count) => (30 * count) / 25), //30 seconds at 25 animals
+                                        1, "Food", 10); //1 animal killed, produces 10 food
+        berries.AddMoveAction("Collect Berries", "Berries", "Food", GameController.Instance.storage, ((Double count) => (5 * count) / 2600), //5 seconds at 1200 berries
+                                        100, "Food", 0.01); //100 berries collected produces 1 food
         base.Start();
     }
 
@@ -100,6 +94,8 @@ public class ForestHabitat : Habitat
         base.Update();
         UpdateUI();
         UpdateForestDensity();
+
+        //if count of trees < X, add action to clear trees
     }
 
     override public void FixedUpdate()
@@ -110,23 +106,21 @@ public class ForestHabitat : Habitat
     void UpdateUI()
     {
         //updating UI text
-        Text treeCountText = treeCountTextObject.GetComponent<Text>();
-        Text animalCountText = animalCountTextObject.GetComponent<Text>();
-        Text berryBushCountText = berryBushCountTextObject.GetComponent<Text>();
-        Text berryCountText = berryCountTextObject.GetComponent<Text>();
-        Text bugCountText = bugCountTextObject.GetComponent<Text>();
-        Text spareLandCountText = spareLandCountTextObject.GetComponent<Text>();
-        treeCountText.text = string.Format("q Trees: {0:0.0}", speciesList[0].count);
-        animalCountText.text = string.Format("e Animals: {0:0.0}", speciesList[1].count);
-        berryBushCountText.text = string.Format("Berry Bushes: {0:0.0}", speciesList[2].count);
-        berryCountText.text = string.Format("r Berries: {0:0.0}", speciesList[3].count);
-        bugCountText.text = string.Format("Bugs: {0:0.0}", speciesList[4].count);
+        Text treeCountText = speciesCountTextObject.GetComponent<Text>();
+        String newString = "";
+        foreach(HabitatSpecies species in speciesList)
+        {
+            newString += String.Format(species.name +": {0:0.0}\n", species.count);
+        }
+        
         double remainingLand = base.totalLandCount;
         foreach (HabitatSpecies species in speciesList)
         {
             remainingLand -= species.landSpaceUsed();
         }
-        spareLandCountText.text = string.Format("Spare Land: {0:0.0}", remainingLand);
+        newString += string.Format("Spare Land: {0:0.0}", remainingLand);
+
+        treeCountText.text = newString;
     }
 
     void UpdateForestDensity()
