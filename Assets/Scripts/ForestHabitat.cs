@@ -67,10 +67,11 @@ public class ForestHabitat : Habitat
 
         //adding the species to the species list
         //species = new List<HabitatSpecies>();
+        base.speciesList.Add(berries);
         base.speciesList.Add(trees);
         base.speciesList.Add(animals);
         base.speciesList.Add(berryBush);
-        base.speciesList.Add(berries);
+        
         base.speciesList.Add(bugs);
 
     }
@@ -79,12 +80,12 @@ public class ForestHabitat : Habitat
     override public void Start()
     {
         //Adding actions
-        trees.AddMoveAction("Axe Tree", "Trees", "Wood", GameController.Instance.storage, ((Double count) => (20 * count) / 250), //20 seconds at 250 trees
-                                        1, "Wood", 1); // 1 trees moved, produces 1 wood
-        animals.AddMoveAction("Hunt Animal", "Animals", "Food", GameController.Instance.storage, ((Double count) => (30 * count) / 25), //30 seconds at 25 animals
-                                        1, "Food", 10); //1 animal killed, produces 10 food
-        berries.AddMoveAction("Collect Berries", "Berries", "Food", GameController.Instance.storage, ((Double count) => (5 * count) / 2600), //5 seconds at 1200 berries
-                                        100, "Food", 0.01); //100 berries collected produces 1 food
+        berries.AddMoveAction("Collect Berries", "Berries", "1 Food", GameController.Instance.storage, ((Double count) => (5 * count) / 2600), //5 seconds at 1200 berries
+                                        100, "Food", 0.01, () => true); //100 berries collected produces 1 food
+        animals.AddMoveAction("Hunt Animal", "Animals", "10 Food", GameController.Instance.storage, ((Double count) => (30 * count) / 25), //30 seconds at 25 animals
+                                        1, "Food", 10, () => { return GameController.Instance.hasWoodTools; }); //1 animal killed, produces 10 food
+        trees.AddMoveAction("Axe Tree", "Trees", "1 Wood", GameController.Instance.storage, ((Double count) => (20 * count) / 250), //20 seconds at 250 trees
+                                        1, "Wood", 1, () => { return GameController.Instance.hasWoodTools; }); // 1 trees moved, produces 1 wood
         base.Start();
     }
 

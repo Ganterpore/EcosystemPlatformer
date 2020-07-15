@@ -25,17 +25,21 @@ public abstract class ActionableItem
         }
         set
         {
-            value.transform.GetChild(0).GetComponent<Text>().text = actionName;
+            _actionButton = value;
+            value.transform.Find("ActionText").GetComponent<Text>().text = actionName;
+            value.transform.Find("RequirementsText").GetComponent<Text>().text = actionRequirements;
+            value.transform.Find("OutputText").GetComponent<Text>().text = "-->" + actionOutput;
 
             //Setting action of the button
             value.GetComponent<Button>().onClick.AddListener(() =>
             {
-                //String id = this.name + "-" + actionName;
-                String id = actionButton.GetInstanceID() + actionName;
-                GameController.Instance.QueueTask(id, ExecutionTime(), () => Execute());
-                value.transform.GetChild(1).gameObject.SetActive(true);
+                if (IsActionPossible())
+                {
+                    String id = actionButton.GetInstanceID() + actionName;
+                    GameController.Instance.QueueTask(id, ExecutionTime(), this);
+                    value.transform.Find("RadialProgress").gameObject.SetActive(true);
+                }
             });
-            _actionButton = value;
         } 
     }
 
@@ -46,9 +50,24 @@ public abstract class ActionableItem
         this.actionOutput = actionOutput;
     }
 
+    public String GetActionID()
+    {
+        if (actionButton == null)
+        {
+            return actionName;
+        } else
+        {
+            return actionButton.GetInstanceID() + actionName;
+        }
+    }
+
     public abstract bool IsActionPossible();
 
     public abstract double ExecutionTime();
 
+    public abstract void StartExecution();
+
     public abstract bool Execute();
+
+    public abstract void CancelTask();
 }

@@ -16,19 +16,19 @@ public class GameController : MonoBehaviour
         public String id;
         public DateTime startTime;
         public DateTime endTime;
-        public Func<bool> taskExecution;
+        public ActionableItem task;
 
-        public TaskItem(String id, DateTime startTime, DateTime endTime, Func<bool> taskExecution)
+        public TaskItem(String id, DateTime startTime, DateTime endTime, ActionableItem task)
         {
             this.id = id;
             this.startTime = startTime;
             this.endTime = endTime;
-            this.taskExecution = taskExecution;
+            this.task = task;
         }
     }
     private List<TaskItem> taskQueue;
    
-    public int numberOfWorkers = 3;
+    public int numberOfWorkers = 1;
     [HideInInspector]
     public List<Habitat> worldHabitats;
     int DAY_LENGTH_IN_SECONDS = 120;
@@ -39,6 +39,8 @@ public class GameController : MonoBehaviour
     public Storage storage;
 
     GameObject workersDisplayText;
+
+    public bool hasWoodTools = false;
 
     void OnEnable()
     {
@@ -91,7 +93,7 @@ public class GameController : MonoBehaviour
             //if the finish time of the task has passed, call the function and remove it from the queue
             if (task.endTime < DateTime.Now)
             {
-                task.taskExecution();
+                task.task.Execute();
                 taskQueue.RemoveAt(i);
                 numberOfWorkers++;
             }
@@ -109,6 +111,10 @@ public class GameController : MonoBehaviour
 
             //as the day ends all jobs are cancelled
             numberOfWorkers += taskQueue.Count;
+            foreach(TaskItem task in taskQueue)
+            {
+                task.task.CancelTask();
+            }
             taskQueue.Clear();
 
             HabitatSpecies food = storage.GetSpecies("Food");
@@ -144,7 +150,7 @@ public class GameController : MonoBehaviour
         return (1.0 * timeSinceLastPopulationUpdate * Time.fixedDeltaTime) / (1.0 * DAY_LENGTH_IN_SECONDS);
     }
 
-    public bool QueueTask(String id, double time, Func<bool> task)
+    public bool QueueTask(String id, double time, ActionableItem task)
     {
         if(numberOfWorkers <= 0)
         {
@@ -154,6 +160,7 @@ public class GameController : MonoBehaviour
         DateTime endTime = DateTime.Now.AddSeconds(time);
         taskQueue.Add(new TaskItem(id, DateTime.Now, endTime, task));
         numberOfWorkers--;
+        task.StartExecution();
         return true;
     } 
 

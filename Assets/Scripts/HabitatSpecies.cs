@@ -156,34 +156,12 @@ public class HabitatSpecies
         count = count * growthRate;
     }
 
-    //public double BeginAction(String actionName)
-    //{
-    //    foreach (SpeciesAction action in actions)
-    //    {
-    //        if (action.actionName == actionName)
-    //        {
-    //            return action.ExecutionTime();
-    //        }
-    //    }
-    //    return 0;
-    //}
-
-    //public void ExecuteAction(String actionName, Storage storage)
-    //{
-    //    foreach (SpeciesAction action in actions)
-    //    {
-    //        if (action.actionName == actionName) {
-    //            action.Execute(this, storage);
-    //        }
-    //    }
-    //}
-
     /** Moves HabitatSpecies from were it is to the moveTo habitat (usually storage)
     * timeTaken: a function of the count of the habitat species, determines the time taken based on the amount in the habitat
     * determines the amount moved as a function of the current amount. */
-    public void AddMoveAction(String actionName, string actionRequirements, string actionOutput, Storage storage, Func<Double, Double> timeTaken, double amountRemoved, String outputName, double amountProduced)
+    public void AddMoveAction(String actionName, string actionRequirements, string actionOutput, Storage storage, Func<Double, Double> timeTaken, double amountRemoved, String outputName, double amountProduced, Func<bool> requirementsPassed)
     {
-        SpeciesAction action = new SpeciesAction(actionName, actionRequirements, actionOutput, this, storage, timeTaken, amountRemoved, outputName, amountProduced);
+        SpeciesAction action = new SpeciesAction(actionName, actionRequirements, actionOutput, this, storage, timeTaken, amountRemoved, outputName, amountProduced, requirementsPassed);
         actions.Add(action);
     }
 
@@ -197,9 +175,11 @@ public class HabitatSpecies
         private double countOfStorageItemProducedPerSpeciesRemoved;
         private HabitatSpecies parentSpecies;
         private Storage storage;
+        private Func<bool> requirementsPassed;
 
         public SpeciesAction(String name, string actionRequirements, string actionOutput, HabitatSpecies parentSpecies, Storage storage, 
-            Func<Double, Double> timeTaken, double countOfSpeciesRemovedOnSuccess, String outputName, double countOfStorageItemProducedPerSpeciesRemoved)
+            Func<Double, Double> timeTaken, double countOfSpeciesRemovedOnSuccess, String outputName, double countOfStorageItemProducedPerSpeciesRemoved,
+            Func<bool> requirementsPassed)
             : base(name, actionRequirements, actionOutput)
         {
             this.parentSpecies = parentSpecies;
@@ -208,11 +188,12 @@ public class HabitatSpecies
             this.countOfSpeciesRemovedOnSuccess = countOfSpeciesRemovedOnSuccess;
             this.outputName = outputName;
             this.countOfStorageItemProducedPerSpeciesRemoved = countOfStorageItemProducedPerSpeciesRemoved;
+            this.requirementsPassed = requirementsPassed;
         }
 
         override public bool IsActionPossible()
         {
-            return parentSpecies.count > 0;
+            return requirementsPassed() && parentSpecies.count > 0;
         }
 
         override public double ExecutionTime()
@@ -220,6 +201,11 @@ public class HabitatSpecies
             double count = parentSpecies.count;
             double timeTaken = timeTakenFunc(count);
             return timeTaken;
+        }
+
+        public override void StartExecution()
+        {
+            //Nothing changes at the start of execution for this
         }
 
         //TODO return boolean successful
@@ -248,6 +234,11 @@ public class HabitatSpecies
                 storage.GetSpecies(outputName).count = storage.GetSpecies(outputName).count + countOfSpeciesRemovedOnSuccess * countOfStorageItemProducedPerSpeciesRemoved;
             }
             return true;
+        }
+
+        public override void CancelTask()
+        {
+            //nothing to do on cancel
         }
 
     }

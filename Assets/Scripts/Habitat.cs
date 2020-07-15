@@ -8,6 +8,7 @@ using System.Security.AccessControl;
 using System;
 using UnityEngine.InputSystem;
 using System.Runtime.Remoting;
+using System.Linq;
 
 public class Habitat : MonoBehaviour
 {
@@ -32,10 +33,8 @@ public class Habitat : MonoBehaviour
     {
         //adding to the world habitats list
         GameController.Instance.worldHabitats.Add(this);
-
-        //adding the action buttons
-        actionButtons = new List<GameObject>();
-        //TODO this will need to be standardised for all Actions. And to be updated as actions change.
+        
+        //adding each species actions to the habitat actions
         foreach (HabitatSpecies species in speciesList)
         {
             if(species.actions.Count > 0)
@@ -62,18 +61,32 @@ public class Habitat : MonoBehaviour
                 action.actionButton = actionButton;
             }
             
-            String taskId = actionButton.GetInstanceID() + action.actionName;
+            String taskId = action.GetActionID();
             int taskCount = GameController.Instance.CountTask(taskId);
             //if no current tasks for the button, hide the progress circle
             if(taskCount <= 0)
             {
-                actionButton.transform.GetChild(1).gameObject.SetActive(false);
+                actionButton.transform.Find("RadialProgress").gameObject.SetActive(false);
             } else
             {
                 //otherwise, update the number of current tasks and the progress circle completion
-                actionButton.transform.GetChild(1).gameObject.transform.GetChild(2).GetComponent<Text>().text = "" + taskCount;
+                actionButton.transform.Find("RadialProgress").gameObject.transform.Find("Text").GetComponent<Text>().text = "" + taskCount;
                 double completionPercent = GameController.Instance.TaskPercentComplete(taskId);
-                actionButton.transform.GetChild(1).gameObject.transform.GetChild(1).GetComponent<Image>().fillAmount = (float) completionPercent;
+                actionButton.transform.Find("RadialProgress").gameObject.transform.Find("RadialFill").GetComponent<Image>().fillAmount = (float) completionPercent;
+            }
+
+            //if action not currently possible, grey out the button and move to the bottom of the list
+            if (!action.IsActionPossible())
+            {
+                actionButton.GetComponent<Image>().color = UnityEngine.Color.gray;
+                //if no current tasks in queue for that action, move button to the end
+                if (!actionButton.transform.Find("RadialProgress").gameObject.activeSelf) {
+                    actionButton.transform.SetAsLastSibling();
+                }
+            }
+            else
+            {
+                actionButton.GetComponent<Image>().color = UnityEngine.Color.white;
             }
         }
     }
@@ -81,6 +94,23 @@ public class Habitat : MonoBehaviour
     virtual public void FixedUpdate()
     {
 
+    }
+
+    public void removeHabitatAction(String actionName)
+    {
+        for(int i=habitatActions.Count-1;i>=0;i--)
+        {
+            ActionableItem action = habitatActions.ElementAt(i);
+            if (action.actionName == actionName)
+            {
+                GameObject button = action.actionButton;
+                if (button != null)
+                {
+                    UnityEngine.Object.Destroy(button);
+                }
+                habitatActions.RemoveAt(i);
+            }
+        }
     }
 
     public void UpdatePopulations()
